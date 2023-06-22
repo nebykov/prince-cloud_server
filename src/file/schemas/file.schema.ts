@@ -7,14 +7,22 @@ export type FileDocument = HydratedDocument<File>;
 
 @Schema()
 export class File {
-  @Prop()
+  _id: mongoose.Schema.Types.ObjectId;
+
+  @Prop({type: String, default: 'Home'})
   name: string;
 
-  @Prop()
-  size: number;
+  @Prop({type: String, required: true})
+  type: string;
 
   @Prop()
-  type: string;
+  access_link: string;
+
+  @Prop({type: Number, default: 0})
+  size: number;
+
+  @Prop({type: String, default: ''})
+  path: string;
 
   @Prop({type: mongoose.Schema.Types.ObjectId, ref: 'User'})
   user_id: User;
@@ -22,8 +30,11 @@ export class File {
   @Prop({type: mongoose.Schema.Types.ObjectId, ref: 'File'})
   parent_id: File;
 
-  @Prop()
-  access_link: string;
+  @Prop({type: [{type: mongoose.Schema.Types.ObjectId, ref: 'File'}]})
+  childs: File[]
+
+  @Prop({type: Date, default: Date.now()})
+  date: Date
 }
 
 export const FileSchema = SchemaFactory.createForClass(File);
