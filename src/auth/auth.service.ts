@@ -40,7 +40,6 @@ export class AuthService {
             user
          }
       } catch (e) {
-         console.log(e)
          throw new HttpException('Registration error', HttpStatus.BAD_REQUEST)
       }
    }

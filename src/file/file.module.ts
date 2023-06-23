@@ -4,6 +4,7 @@ import { FileService } from './file.service';
 import { MongooseModule } from '@nestjs/mongoose';
 import { File, FileSchema } from './schemas/file.schema';
 import { AuthModule } from 'src/auth/auth.module';
+import { UserModule } from 'src/user/user.module';
 
 @Module({
   controllers: [FileController],
@@ -11,6 +12,7 @@ import { AuthModule } from 'src/auth/auth.module';
   imports: [
     MongooseModule.forFeature([{name: File.name, schema: FileSchema}]),
     forwardRef(() => AuthModule),
+    UserModule
   ],
   exports: [FileService, MongooseModule]
 })
