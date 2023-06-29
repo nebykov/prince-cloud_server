@@ -12,17 +12,17 @@ export class FileService {
     constructor(
         @InjectModel(File.name) private fileModel: Model<File>,
         @InjectModel(User.name) private userModel: Model<User>
-        ) { }
+    ) { }
 
     async createDir(dto: CreateDirDto, userId: string) {
         const file = await this.fileModel.create({ ...dto, user_id: userId, type: 'dir' })
         const parent = await this.fileModel.findOne({ _id: dto.parent })
 
         if (!parent) {
-            file.path = dto.name
+            file.path = path.resolve(__dirname, '..', 'static', userId, dto.name) 
             await this.fsCreateDir(file)
         } else {
-            file.path = `${parent.path}\\${dto.name}`
+            file.path = path.resolve(__dirname, '..', 'static', userId, parent.path, dto.name) 
             await this.fsCreateDir(file)
             file.parent_id = parent.id
             parent.childs.push(file)
@@ -37,7 +37,7 @@ export class FileService {
     async uploadFile(userId: string, parentId: string, file: Express.Multer.File) {
         try {
             const user = await this.userModel.findById(userId)
-            const parent = await this.fileModel.findOne({user_id: userId, _id: parentId})
+            const parent = await this.fileModel.findOne({ user_id: userId, _id: parentId })
 
             if (user.usedSpace + file.size > user.diskSpace) {
                 throw new HttpException('Storage is full', HttpStatus.BAD_REQUEST)
@@ -53,7 +53,7 @@ export class FileService {
             }
 
             if (!fs.existsSync(filePath)) {
-                fs.mkdirSync(filePath, {recursive: true})
+                fs.mkdirSync(filePath, { recursive: true })
             }
 
             fs.writeFileSync(path.resolve(filePath, file.originalname), file.buffer)
@@ -65,26 +65,55 @@ export class FileService {
                 type,
                 size: file.size,
                 parent_id: parent?.id,
-                path: filePath,
+                path: path.resolve(filePath, file.originalname),
                 user_id: user.id
             })
 
             await user.save()
 
             return dbFile;
-        } catch(e) {
+        } catch (e) {
             throw new HttpException(e.response, HttpStatus.BAD_REQUEST)
         }
     }
 
-    async downloadFile() {
+    async downloadFile(userId: string, fileId: string, res: any) {
+        try {
+            const file = await this.fileModel.findOne({ user_id: userId, _id: fileId })
+            const filePath = path.resolve(__dirname, '..', 'static', file.path)
+            if (fs.existsSync(filePath)) {
+                res.download(filePath, file.name)
+            }
+        } catch (e) {
+            throw new HttpException(e, HttpStatus.BAD_REQUEST)
+        }
+    }
 
+
+    async deleteFile(userId: string, fileId: string) {
+        try {
+            const file = await this.fileModel.findOne({ user_id: userId, _id: fileId })
+            const filePath = path.resolve(__dirname, '..', 'static', file.path)
+            if (!file) {
+                throw new HttpException('File not Found', HttpStatus.NOT_FOUND)
+            }
+
+            if (file.type === 'dir' && filePath) {
+                fs.rmdirSync(filePath)
+            } else {
+                fs.unlinkSync(filePath)
+            }
+            await file.deleteOne()
+            return file
+        } catch (e) {
+            throw new HttpException(e, HttpStatus.BAD_REQUEST)
+        }
     }
 
 
     async getFiles(userId: string, parentId: string) {
         try {
-            const files = await this.fileModel.find({user_id: userId, parent_id: parentId})
+            const files = await this.fileModel.find({ user_id: userId, parent_id: parentId })
             if (!files) {
                 throw new HttpException('Files not found', HttpStatus.NOT_FOUND)
             }
@@ -96,9 +125,8 @@ export class FileService {
 
     async fsCreateDir(file: File) {
         try {
-            const filePath = path.resolve(__dirname, '..', 'static', `${file.user_id}\\${file.path}`)
-            if (!fs.existsSync(filePath)) {
-                fs.mkdirSync(filePath, {recursive: true})
+            if (!fs.existsSync(file.path)) {
+                fs.mkdirSync(file.path, { recursive: true })
                 return { message: 'File was created!' }
             } else {
                 throw new HttpException(`File already exists`, HttpStatus.BAD_REQUEST)
