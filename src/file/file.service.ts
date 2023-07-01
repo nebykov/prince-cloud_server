@@ -19,10 +19,10 @@ export class FileService {
         const parent = await this.fileModel.findOne({ _id: dto.parent })
 
         if (!parent) {
-            file.path = path.resolve(__dirname, '..', 'static', userId, dto.name) 
+            file.path = path.resolve(__dirname, '..', 'static', userId, dto.name)
             await this.fsCreateDir(file)
         } else {
-            file.path = path.resolve(__dirname, '..', 'static', userId, parent.path, dto.name) 
+            file.path = path.resolve(__dirname, '..', 'static', userId, parent.path, dto.name)
             await this.fsCreateDir(file)
             file.parent_id = parent.id
             parent.childs.push(file)
@@ -110,10 +110,31 @@ export class FileService {
         }
     }
 
-
-    async getFiles(userId: string, parentId: string) {
+    async searchFiles(userId: string, query: string) {
         try {
-            const files = await this.fileModel.find({ user_id: userId, parent_id: parentId })
+             const files = await this.fileModel.find({name: {$regex: new RegExp(query, 'i')}})
+             return files;
+        } catch (e) {
+            throw new HttpException(e, HttpStatus.BAD_REQUEST)
+        }
+    }
+
+
+    async getFiles(userId: string, parentId: string, sortBy: string) {
+        try {
+            let files: any;
+            switch (sortBy) {
+                case 'name':
+                    files = await this.fileModel.find({ user_id: userId, parent_id: parentId }).sort({ name: 1 })
+                    break;
+                case 'type':
+                    files = await this.fileModel.find({ user_id: userId, parent_id: parentId }).sort({ type: 1 })
+                    break;
+                case 'size':
+                    files = await this.fileModel.find({ user_id: userId, parent_id: parentId }).sort({ size: 1 })
+                default:
+                    files = await this.fileModel.find({ user_id: userId, parent_id: parentId })
+            }
             if (!files) {
                 throw new HttpException('Files not found', HttpStatus.NOT_FOUND)
             }
@@ -126,7 +147,7 @@ export class FileService {
     async fsCreateDir(file: File) {
         try {
             if (!fs.existsSync(file.path)) {
-                fs.mkdirSync(file.path, { recursive: true })
+                await fs.promises.mkdir(file.path, { recursive: true });
                 return { message: 'File was created!' }
             } else {
                 throw new HttpException(`File already exists`, HttpStatus.BAD_REQUEST)

@@ -32,7 +32,10 @@ export class AuthService {
 
          if (user) {
             const file = await this.fileModel.create({ user_id: user._id, name: 'Home', type: 'dir' })
-            await this.fileService.fsCreateDir(file)
+            
+            if(file && file.path) {
+               await this.fileService.fsCreateDir(file)
+            }
          }
          const token = await this.generateToken(user)
          return {
@@ -40,6 +43,7 @@ export class AuthService {
             user
          }
       } catch (e) {
+         console.log(e)
          throw new HttpException('Registration error', HttpStatus.BAD_REQUEST)
       }
    }

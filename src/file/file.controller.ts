@@ -16,6 +16,12 @@ export class FileController {
     }
 
     @UseGuards(AuthGuard)
+    @Get('search')
+    searchFiles(@Req() req, @Query('query') query: string) {
+        return this.fileService.searchFiles(req.user.id, query)
+    }
+
+    @UseGuards(AuthGuard)
     @Post('upload')
     @UseInterceptors(FileInterceptor('file'))
     uploadFile(@Req() req, @Body('parent') parentId, @UploadedFile() file: Express.Multer.File) {
@@ -36,9 +42,9 @@ export class FileController {
 
     @UseGuards(AuthGuard)
     @Get()
-    getFiles(@Req() req, @Query('parent') parent: string) {
+    getFiles(@Req() req, @Query('parent') parent: string, @Query('sort') sortBy: string) {
         try {
-            return this.fileService.getFiles(req.user.id, parent)
+            return this.fileService.getFiles(req.user.id, parent, sortBy)
         } catch (e) {
             throw new HttpException('Token error', HttpStatus.BAD_REQUEST)
         }
